@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "AI LeetCode Coach",
+  "version": "1.0.0",
+  "description": "AI-powered coding tutor that teaches you to solve LeetCode problems",
+
+  "permissions": ["sidePanel", "activeTab", "tabs", "storage"],
+
+  "host_permissions": [
+    "https://leetcode.com/*",
+    "http://localhost:8000/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [{
+    "matches": ["https://leetcode.com/problems/*"],
+    "js": ["content.js"]
+  }],
+
+  "side_panel": {
+    "default_path": "index.html"
+  },
+
+  "action": {
+    "default_title": "Open AI LeetCode Coach"
+  }
+}
