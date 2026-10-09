@@ -21,12 +21,128 @@ LeetCode Page                     Side Panel (Extension)              Backend
 └────────────────────┘     └──────────────────────────┘     └──────────────────┘
 ```
 
-**Three modes:**
-| Mode | What it does | Example |
-|------|-------------|---------|
-| **Teach** | Explains concepts, asks guiding questions | "What pattern does this problem follow?" |
-| **Hint** | Progressive hints (nudge → approach → near-solution) | Level 1: "Think about hash maps" |
-| **Review** | Reviews your code for bugs, edge cases, complexity | "What happens when the array is empty?" |
+---
+
+## LangGraph AI Workflow
+
+The AI brain is a **LangGraph StateGraph** — a flowchart where each step is a specialized AI function. Here's the full flow:
+
+### The Graph
+
+```mermaid
+graph TD
+    START((START)) --> classify_intent
+
+    classify_intent -->|"intent = teach"| teach
+    classify_intent -->|"intent = hint"| give_hint
+    classify_intent -->|"intent = review"| review_code
+
+    teach --> END((END))
+    give_hint --> END
+    review_code --> END
+
+    style START fill:#ffa116,color:#000
+    style END fill:#ffa116,color:#000
+    style classify_intent fill:#2a4a7f,color:#fff
+    style teach fill:#1a6b3c,color:#fff
+    style give_hint fill:#6b4c1a,color:#fff
+    style review_code fill:#6b1a2a,color:#fff
+```
+
+### State — The Shared Data Bag
+
+Every node reads from and writes to a shared state object:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  TutorState                                             │
+├─────────────────────────────────────────────────────────┤
+│  messages    │ Conversation history (auto-appends)      │
+│  problem     │ LeetCode problem data (title, content)   │
+│  language    │ "python" / "javascript" / "cpp"          │
+│  user_code   │ Student's code from the editor           │
+│  intent      │ "teach" / "hint" / "review"              │
+│  hint_level  │ 0 → 1 → 2 → 3 (progressive hints)      │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Step-by-Step Flow
+
+```
+User sends: "I'm stuck on Two Sum, give me a hint"
+│
+▼
+┌─────────────────────────────────────────────────────────┐
+│  1. CLASSIFY INTENT                                     │
+│                                                         │
+│  Reads: latest user message                             │
+│  Calls: Gemini with classifier prompt                   │
+│  Prompt: "Classify this as teach, hint, or review.      │
+│           Respond with ONLY one word."                  │
+│  Result: Gemini returns "hint"                          │
+│  Writes: { intent: "hint" }                             │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  2. ROUTE BY INTENT                                     │
+│                                                         │
+│  Reads: state.intent → "hint"                           │
+│  Logic: if "hint" → go to give_hint                     │
+│         if "review" → go to review_code                 │
+│         else → go to teach                              │
+│  Result: routes to give_hint node                       │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  3. GIVE HINT                                           │
+│                                                         │
+│  Reads: problem data, hint_level (currently 0)          │
+│  Increments: hint_level 0 → 1                           │
+│  Calls: Gemini with hint prompt at Level 1              │
+│  Prompt: "Give a Level 1 hint (gentle nudge).           │
+│           Problem: Two Sum. Do NOT reveal the answer."  │
+│  Result: "Think about what data structure lets you      │
+│           look up values quickly."                      │
+│  Writes: { messages: [AI response], hint_level: 1 }    │
+└─────────────────────┬───────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────┐
+│  4. END — Response goes back to the user                │
+└─────────────────────────────────────────────────────────┘
+```
+
+### The Three Nodes
+
+| Node | When it runs | What Gemini is told | What it returns |
+|------|-------------|-------------------|-----------------|
+| **teach** | User wants to learn | "You are a Socratic tutor. NEVER give the solution. Ask guiding questions." | Teaching explanation |
+| **give_hint** | User asks for a hint | "Give a Level {n} hint. Level 1 = nudge, Level 2 = approach, Level 3 = near-solution." | Hint + incremented hint_level |
+| **review_code** | User shares code | "Review this code for correctness, edge cases, complexity. Do NOT rewrite it." | Code feedback |
+
+### Conversation Memory
+
+LangGraph's **checkpointer** (MemorySaver) keeps conversations alive across requests:
+
+```
+Request 1: session_id="abc" → "help me with Two Sum"
+  → State saved: messages=[user, ai], hint_level=0
+
+Request 2: session_id="abc" → "give me a hint"
+  → State loaded: previous messages restored
+  → hint_level=0 → give Level 1 hint → hint_level=1
+
+Request 3: session_id="abc" → "another hint please"
+  → State loaded: hint_level=1
+  → give Level 2 hint → hint_level=2
+
+Request 4: session_id="xyz" → "help me with Two Sum"
+  → NEW session, fresh state, starts from scratch
+```
+
+Same `session_id` = continuing conversation. New `session_id` = fresh start.
 
 ---
 
