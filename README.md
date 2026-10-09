@@ -27,26 +27,41 @@ LeetCode Page                     Side Panel (Extension)              Backend
 
 The AI brain is a **LangGraph StateGraph** — a flowchart where each step is a specialized AI function. Here's the full flow:
 
-### The Graph
+### The Graph — Nodes & Edges
 
-```mermaid
-graph TD
-    START((START)) --> classify_intent
-
-    classify_intent -->|"intent = teach"| teach
-    classify_intent -->|"intent = hint"| give_hint
-    classify_intent -->|"intent = review"| review_code
-
-    teach --> END((END))
-    give_hint --> END
-    review_code --> END
-
-    style START fill:#ffa116,color:#000
-    style END fill:#ffa116,color:#000
-    style classify_intent fill:#2a4a7f,color:#fff
-    style teach fill:#1a6b3c,color:#fff
-    style give_hint fill:#6b4c1a,color:#fff
-    style review_code fill:#6b1a2a,color:#fff
+```
+                         ┌─────────┐
+                         │  START  │
+                         └────┬────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │ classify_intent  │
+                    │                  │
+                    │ "What does the   │
+                    │  user want?"     │
+                    └────────┬─────────┘
+                             │
+                     ┌───────┼────────┐
+                     │       │        │
+            intent="teach"  intent="hint"  intent="review"
+                     │       │        │
+                     ▼       ▼        ▼
+              ┌──────────┐ ┌──────────┐ ┌─────────────┐
+              │  teach   │ │give_hint │ │ review_code │
+              │          │ │          │ │             │
+              │ Socratic │ │ Level 1  │ │ Bugs, edge  │
+              │ method,  │ │ → 2 → 3  │ │ cases, O(n) │
+              │ guiding  │ │ progress │ │ feedback    │
+              │ questions│ │ ive hints│ │             │
+              └────┬─────┘ └────┬─────┘ └──────┬──────┘
+                   │            │              │
+                   └────────────┼──────────────┘
+                                │
+                                ▼
+                          ┌───────────┐
+                          │    END    │
+                          └───────────┘
 ```
 
 ### State — The Shared Data Bag
